@@ -17,20 +17,33 @@
  *   sub/stats.json       本次抓取统计（含家宽计数）
  *   sub/ip-cache.json    ASN 检查缓存（下次只查新 IP，省额度）
  *
- * 家宽筛查方法：域名先 DNS 解析成 IP，再用 ipinfo.io（无 key）查国家/ASN/org，
- * 失败时用 ip-api.com（免费接口，限速 45 次/分钟）兜底。按 org 判断住宅 ISP
- * （Comcast/Charter/Cox/AT&T/Free/Orange/Fastweb/KT/SK 等）vs 机房
- * （GTHost/Datacamp/OVH/DigitalOcean 等）。没有单一官方“人类指数”，不编分数，
- * 查不到的标 unknown。ASN 是住宅 ISP 但使用者是机房的，单列为 static-isp。
+ * 家宽筛查方法（v2，2026-11-22）：
+ *   第一层（全量，免费、无 key）：ip-api.com 批量 POST http://batch.ip-api.com/json，
+ *   每批 100 个 IP，取 hosting/proxy/mobile/isp/org/as/countryCode。
+ *   初筛：hosting==false && proxy==false && mobile==false，且 org/isp 是真 ISP。
+ *   第二层（只查家宽候选，约 10-30 个 IP）：proxycheck.io，key 来自环境变量
+ *   PROXYCHECK_KEY / PROXYCHECK_KEY_2（GitHub Secret，绝不写进代码、不打印），
+ *   两个 key 合计 2000 次/天，第一个 429/限额时自动换第二个。取 type==Residential、
+ *   risk 0-100（risk 0 = 100 分）、proxy/vpn/tor/hosting 全 false 才确认家宽。
+ *   没有 key 时第二层跳过，stats 里注明。ip.net.coffee 没有公开 API，不做批量源，
+ *   只做手动抽查。已知机房 IP（2026-11-19 ip.net.coffee 复核）硬编码否决。
+ *   质量：TCP 连通延迟 tcp_ms 全量测；443 端口节点加测 TLS 握手 tls_ms；
+ *   不做全量下载测速（1,259 个节点在 Actions 30 分钟内跑不完）。
+ *   重命名：全部节点按国家（中文）+ 家宽/普通分组，组内按 tcp_ms 升序编号，
+ *   家宽：美国-家宽-001 / 美国-家宽-100分-001（分数仅来自 proxycheck risk），
+ *   普通：美国-001、日本-002；排序确定性（国家→延迟→IP），编号不乱跳。
  *
  * 可选：同时设置 GIST_ID 与 GH_TOKEN 环境变量时，顺手把订阅同步到该 gist。
  * 环境变量开关：TCP_CHECK=0 关连通性检测；MIN_NODES=20 低于此数认为抓取异常；
  *   RESIDENTIAL_CHECK=0 关家宽筛查；RESIDENTIAL_BUDGET_MS 家宽筛查总预算（默认 600000ms）；
  *   IP_CHECK_MAX 只查前 N 个唯一 IP（0=不限，用于本地快速验证）。
+ *   PROXYCHECK_KEY=... proxycheck.io 免费 key（第二层家宽确认用，缺省跳过）。
+ *   PROXYCHECK_KEY_2=... 第二个免费 key，第一个 429/限额时自动换用，合计 2000 次/天。
  */
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import net from 'node:net';
+import tls from 'node:tls';
 import path from 'node:path';
 import dns from 'node:dns';
 
@@ -50,6 +63,15 @@ const RESIDENTIAL_CHECK = process.env.RESIDENTIAL_CHECK !== '0';
 const RES_CONCURRENCY = Number(process.env.RESIDENTIAL_CONCURRENCY || 16);
 const RES_BUDGET_MS = Number(process.env.RESIDENTIAL_BUDGET_MS || 600000);
 const IP_CHECK_MAX = Number(process.env.IP_CHECK_MAX || 0);
+const IP_CACHE_TTL_MS = Number(process.env.IP_CACHE_TTL_MS || 14 * 24 * 3600 * 1000); // 缓存 14 天
+// proxycheck key 只从环境变量读，绝不写进代码、不打印、不进日志
+// 支持两个 key（PROXYCHECK_KEY + PROXYCHECK_KEY_2），合计 2000 次/天；
+// 第一个 key 429/限额时自动换第二个
+const PROXYCHECK_KEYS = [process.env.PROXYCHECK_KEY, process.env.PROXYCHECK_KEY_2]
+  .map((v) => String(v || '').trim()).filter(Boolean);
+const PROXYCHECK_KEY = PROXYCHECK_KEYS[0] || '';
+const TLS_CHECK = process.env.TLS_CHECK !== '0';
+const TLS_TIMEOUT_MS = Number(process.env.TLS_TIMEOUT_MS || 3000);
 
 const UA = 'Mozilla/5.0 (compatible; node-sub-aggregator/1.0; +https://github.com)';
 const SCHEME_RE = /^(vmess|vless|trojan|ss|ssr|hysteria2?|hy2|tuic):\/\//i;
@@ -89,6 +111,32 @@ const HOSTING_KEYWORDS = [
   'cloudflare', 'cloudcone', 'interserver', 'ionos', 'scaleway', 'upcloud',
 ];
 
+// 2026-11-19 在 ip.net.coffee 上逐个复核，站点原话判为机房 IP 的 5 个
+// （分数高不等于家宽）：154.85.1.3 / 113.31.124.147 / 142.171.149.75 /
+// 142.171.237.242 / 49.254.204.133。无论 ASN 怎么说，一律否决为机房。
+const KNOWN_DATACENTER_IPS = new Set([
+  '154.85.1.3', '113.31.124.147', '142.171.149.75', '142.171.237.242', '49.254.204.133',
+]);
+
+// 国家代码 → 中文名（订阅重命名用；不在表里的用代码本身）
+const COUNTRY_ZH = {
+  US: '美国', CN: '中国', HK: '香港', TW: '台湾', MO: '澳门', JP: '日本', KR: '韩国',
+  SG: '新加坡', DE: '德国', NL: '荷兰', FR: '法国', GB: '英国', IT: '意大利', ES: '西班牙',
+  CA: '加拿大', AU: '澳大利亚', RU: '俄罗斯', UA: '乌克兰', PL: '波兰', CZ: '捷克',
+  AT: '奥地利', CH: '瑞士', SE: '瑞典', NO: '挪威', DK: '丹麦', FI: '芬兰', IE: '爱尔兰',
+  BE: '比利时', LU: '卢森堡', PT: '葡萄牙', GR: '希腊', TR: '土耳其', IL: '以色列',
+  AE: '阿联酋', SA: '沙特', IN: '印度', ID: '印尼', MY: '马来西亚', TH: '泰国',
+  VN: '越南', PH: '菲律宾', BR: '巴西', MX: '墨西哥', AR: '阿根廷', CL: '智利',
+  CO: '哥伦比亚', PE: '秘鲁', ZA: '南非', EG: '埃及', NG: '尼日利亚', KE: '肯尼亚',
+  NZ: '新西兰', RO: '罗马尼亚', BG: '保加利亚', HR: '克罗地亚', HU: '匈牙利',
+  SK: '斯洛伐克', SI: '斯洛文尼亚', RS: '塞尔维亚', LV: '拉脱维亚', LT: '立陶宛',
+  EE: '爱沙尼亚', BY: '白俄罗斯', KZ: '哈萨克斯坦', IR: '伊朗', IQ: '伊拉克',
+  AM: '亚美尼亚', GE: '格鲁吉亚', AZ: '阿塞拜疆', KH: '柬埔寨', LA: '老挝',
+  MM: '缅甸', NP: '尼泊尔', LK: '斯里兰卡', BD: '孟加拉', PK: '巴基斯坦',
+};
+const ZH_COUNTRY = { '美国': 'US', '中国': 'CN', '香港': 'HK', '台湾': 'TW', '澳门': 'MO', '日本': 'JP', '韩国': 'KR', '新加坡': 'SG', '德国': 'DE', '荷兰': 'NL', '法国': 'FR', '英国': 'GB', '意大利': 'IT', '西班牙': 'ES', '加拿大': 'CA', '澳大利亚': 'AU', '俄罗斯': 'RU', '乌克兰': 'UA', '波兰': 'PL' };
+function countryZh(code) { return COUNTRY_ZH[String(code || '').toUpperCase()] || String(code || '未知'); }
+
 const stats = {
   updated: new Date().toISOString(),
   sources: [],
@@ -111,6 +159,10 @@ const stats = {
   byCountry: {},
   clashProxies: 0,
   clashSkipped: 0,
+  proxycheck: { enabled: false, reason: 'no key', checked: 0, confirmed: 0 },
+  ipDetails: {},
+  renamed: 0,
+  sampleRenamed: [],
 };
 
 // ---------- 工具 ----------
@@ -263,18 +315,40 @@ async function fetchSource(url, attempts = 3) {
 
 function tcpCheck(host, port) {
   return new Promise((resolve) => {
+    const start = Date.now();
     let done = false;
     const finish = (ok) => {
       if (done) return;
       done = true;
       try { socket.destroy(); } catch { /* ignore */ }
-      resolve(ok);
+      resolve({ ok, ms: Date.now() - start });
     };
     const socket = net.connect({ host, port });
     socket.setTimeout(TCP_TIMEOUT_MS);
     socket.once('connect', () => finish(true));
     socket.once('timeout', () => finish(false));
     socket.once('error', () => finish(false));
+  });
+}
+
+function tlsCheck(host, port) {
+  return new Promise((resolve) => {
+    const start = Date.now();
+    let done = false;
+    const finish = (ms) => {
+      if (done) return;
+      done = true;
+      try { socket.destroy(); } catch { /* ignore */ }
+      resolve(ms);
+    };
+    let socket;
+    try {
+      socket = tls.connect({ host, port, servername: host, rejectUnauthorized: false });
+    } catch { return resolve(null); }
+    socket.setTimeout(TLS_TIMEOUT_MS);
+    socket.once('secureConnect', () => finish(Date.now() - start));
+    socket.once('timeout', () => finish(null));
+    socket.once('error', () => finish(null));
   });
 }
 
@@ -285,14 +359,31 @@ async function filterAlive(nodes, concurrency) {
     while (index < nodes.length) {
       const node = nodes[index++];
       if (!node.host || !node.port || node.port < 1 || node.port > 65535) {
+        node.tcp_ms = null;
         alive.push(node);
         continue;
       }
-      if (await tcpCheck(node.host, node.port)) alive.push(node);
+      const r = await tcpCheck(node.host, node.port);
+      node.tcp_ms = r.ok ? r.ms : null;
+      if (r.ok) alive.push(node);
     }
   });
   await Promise.all(workers);
   return alive;
+}
+
+async function filterTls(nodes, concurrency) {
+  // 只测 443 端口：TLS 握手耗时，不传输数据，不做下载测速
+  const targets = nodes.filter((n) => n.port === 443);
+  let index = 0;
+  const workers = Array.from({ length: Math.min(concurrency, targets.length || 1) }, async () => {
+    while (index < targets.length) {
+      const node = targets[index++];
+      node.tls_ms = await tlsCheck(node.host, node.port);
+    }
+  });
+  await Promise.all(workers);
+  for (const n of nodes) if (n.port !== 443) n.tls_ms = null;
 }
 
 // ---------- URI → Clash proxy ----------
@@ -520,7 +611,11 @@ function buildClashYaml(proxies) {
 
 // ---------- 家宽 ASN 筛查 ----------
 
-function classifyIp(info) {
+function classifyIp(info, ip) {
+  if (KNOWN_DATACENTER_IPS.has(ip)) return 'datacenter';
+  if (info.hosting === true) return 'datacenter';
+  if (info.proxy === true) return 'datacenter';
+  if (info.mobile === true) return 'unknown'; // 移动网不是家庭宽带
   const orgText = `${info.org || ''} ${info.asn || ''}`.toLowerCase();
   const ispText = `${info.isp || ''}`.toLowerCase();
   const hostingHit = HOSTING_KEYWORDS.some((k) => orgText.includes(k) || ispText.includes(k));
@@ -531,19 +626,56 @@ function classifyIp(info) {
   return 'unknown';
 }
 
-let ipApiLastCall = 0;
-async function checkIpApi(ip) {
-  // ip-api.com 免费接口限速 45 次/分钟，这里按 1.4 秒间隔节流
-  const wait = 1400 - (Date.now() - ipApiLastCall);
-  if (wait > 0) await new Promise((r) => setTimeout(r, wait));
-  ipApiLastCall = Date.now();
-  try {
-    const res = await fetchWithTimeout(`http://ip-api.com/json/${ip}?fields=status,country,countryCode,isp,org,as,query`, 8000);
-    if (!res.ok) return null;
-    const j = await res.json();
-    if (j.status !== 'success') return null;
-    return { country: String(j.countryCode || '').toUpperCase(), org: String(j.as || j.org || ''), isp: String(j.isp || ''), asn: String(j.as || ''), source: 'ip-api' };
-  } catch { return null; }
+function inferCountryFromRemark(remark) {
+  const r = String(remark || '');
+  for (const [zh, code] of Object.entries(ZH_COUNTRY)) if (r.includes(zh)) return code;
+  if (/united states|usa/i.test(r)) return 'US';
+  if (/japan/i.test(r)) return 'JP';
+  if (/korea/i.test(r)) return 'KR';
+  if (/germany/i.test(r)) return 'DE';
+  if (/netherlands/i.test(r)) return 'NL';
+  if (/france/i.test(r)) return 'FR';
+  if (/united kingdom|britain/i.test(r)) return 'GB';
+  return '';
+}
+
+// ip-api.com 批量：POST http://batch.ip-api.com/json，每批最多 100 个 IP，15 批/分钟
+async function checkIpApiBatch(ips) {
+  const out = new Map();
+  for (let i = 0; i < ips.length; i += 100) {
+    const batch = ips.slice(i, i + 100);
+    let done = false;
+    for (let attempt = 1; attempt <= 2 && !done; attempt++) {
+    try {
+      const r2 = await fetch('http://batch.ip-api.com/json', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'User-Agent': UA },
+        body: JSON.stringify(batch.map((ip) => ({ query: ip, fields: 'status,message,country,countryCode,isp,org,as,hosting,proxy,mobile,query' }))),
+        signal: AbortSignal.timeout(30000),
+      });
+      if (!r2.ok) { console.log(`[warn] ip-api 批量 HTTP ${r2.status}`); continue; }
+      const arr = await r2.json();
+      for (const j of Array.isArray(arr) ? arr : []) {
+        if (j.status !== 'success' || !j.query) continue;
+        out.set(j.query, {
+          country: String(j.countryCode || '').toUpperCase(),
+          countryName: String(j.country || ''),
+          org: String(j.as || j.org || ''),
+          isp: String(j.isp || ''),
+          asn: String(j.as || ''),
+          hosting: j.hosting === true, proxy: j.proxy === true, mobile: j.mobile === true,
+          source: 'ip-api-batch',
+        });
+      }
+      done = true;
+    } catch (err) {
+      console.log(`[warn] ip-api 批量失败（第 ${attempt} 次）：${describeError(err)}`);
+    }
+    }
+    // 批量限速 15 批/分钟：每批之间至少等 4 秒
+    if (i + 100 < ips.length) await new Promise((r) => setTimeout(r, 4100));
+  }
+  return out;
 }
 
 async function checkIpInfo(ip) {
@@ -552,8 +684,38 @@ async function checkIpInfo(ip) {
     if (!res.ok) return null;
     const j = await res.json();
     if (!j.country) return null;
-    return { country: String(j.country).toUpperCase(), org: String(j.org || ''), isp: '', asn: String(j.org || ''), source: 'ipinfo' };
+    return { country: String(j.country).toUpperCase(), org: String(j.org || ''), isp: '', asn: String(j.org || ''), hosting: undefined, proxy: undefined, mobile: undefined, source: 'ipinfo' };
   } catch { return null; }
+}
+
+async function checkProxycheck(ip) {
+  // 第二层只查家宽候选。key 只从环境变量读，绝不打印、不写日志。
+  // 两个 key 轮换：第一个 429/限额/失败时换第二个。
+  if (!PROXYCHECK_KEYS.length) return null;
+  for (let ki = 0; ki < PROXYCHECK_KEYS.length; ki++) {
+    const key = PROXYCHECK_KEYS[ki];
+    try {
+      const url = `https://proxycheck.io/v2/${encodeURIComponent(ip)}?vpn=1&asn=1&key=${encodeURIComponent(key)}`;
+      const res = await fetch(url, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(10000) });
+      if (res.status === 429) continue; // 限额，换下一个 key
+      if (!res.ok) continue;
+      const j = await res.json();
+      if (j && (j.status === 'denied' || /limit|exceed/i.test(String(j.message || '')))) continue;
+      const d = j && j[ip];
+      if (!d) return null;
+      return {
+        type: String(d.type || ''),
+        risk: typeof d.risk === 'number' ? d.risk : null,
+        proxy: String(d.proxy || '') === 'yes',
+        vpn: String(d.vpn || '') === 'yes',
+        tor: String(d.tor || '') === 'yes',
+        hosting: String(d.hosting || '') === 'yes',
+        source: 'proxycheck',
+        keyIndex: ki,
+      };
+    } catch { continue; }
+  }
+  return null;
 }
 
 async function checkResidential(nodes) {
@@ -573,52 +735,191 @@ async function checkResidential(nodes) {
       catch { ip = null; }
     }
     n.ip = ip || '';
-    if (!ip) { n.verdict = 'unknown'; n.country = ''; continue; }
+    if (!ip) { n.verdict = 'unknown'; n.country = inferCountryFromRemark(n.remark); continue; }
     if (!ipToNodes.has(ip)) { ipToNodes.set(ip, []); uniqueIps.push(ip); }
     ipToNodes.get(ip).push(n);
   }
-  // 美国备注的 IP 优先查（IP_CHECK_MAX 限制时最有价值）
-  uniqueIps.sort((a, b) => {
-    const aUS = ipToNodes.get(a).some((n) => /美国|united states/i.test(n.remark || ''));
-    const bUS = ipToNodes.get(b).some((n) => /美国|united states/i.test(n.remark || ''));
-    return Number(bUS) - Number(aUS);
-  });
-  const toCheck = IP_CHECK_MAX > 0 ? uniqueIps.slice(0, IP_CHECK_MAX) : uniqueIps;
+  const toCheckAll = IP_CHECK_MAX > 0 ? uniqueIps.slice(0, IP_CHECK_MAX) : uniqueIps;
+  // 缓存 TTL 14 天：过期才重新查
+  const fresh = {};
+  const stale = [];
+  for (const ip of toCheckAll) {
+    const c = cache[ip];
+    const age = c && c.checkedAt ? Date.now() - new Date(c.checkedAt).getTime() : Infinity;
+    if (c && age < IP_CACHE_TTL_MS && c.country) fresh[ip] = c;
+    else stale.push(ip);
+  }
   let checked = 0;
-  let cacheHits = 0;
-  let index = 0;
-  const workers = Array.from({ length: Math.min(RES_CONCURRENCY, toCheck.length || 1) }, async () => {
-    while (index < toCheck.length) {
+  let cacheHits = Object.keys(fresh).length;
+  // 第一层：ip-api 批量查过期 IP
+  const batchInfo = stale.length ? await checkIpApiBatch(stale) : new Map();
+  const infoByIp = new Map();
+  for (const ip of toCheckAll) {
+    let info = fresh[ip] || batchInfo.get(ip);
+    if (info) {
+      if (batchInfo.has(ip)) { checked++; info.checkedAt = new Date().toISOString(); cache[ip] = info; }
+      infoByIp.set(ip, info);
+    }
+  }
+  // 批量没查到的，逐个用 ipinfo 兜底（并发 8）
+  const missing = toCheckAll.filter((ip) => !infoByIp.has(ip));
+  let mi = 0;
+  const mworkers = Array.from({ length: Math.min(8, missing.length || 1) }, async () => {
+    while (mi < missing.length) {
       if (Date.now() > deadline) break;
-      const ip = toCheck[index++];
-      let info = cache[ip];
-      if (info) { cacheHits++; }
-      else {
-        info = (await checkIpInfo(ip)) || (await checkIpApi(ip));
-        if (info) { info.checkedAt = new Date().toISOString(); cache[ip] = info; checked++; }
-        else { info = { country: '', org: '', isp: '', asn: '', source: 'failed' }; }
-      }
-      const verdict = info.country ? classifyIp(info) : 'unknown';
-      for (const n of ipToNodes.get(ip)) {
-        n.verdict = verdict;
-        n.country = info.country || '';
-        n.org = info.org || '';
-        n.asn = info.asn || '';
-      }
+      const ip = missing[mi++];
+      const info = await checkIpInfo(ip);
+      if (info) { info.checkedAt = new Date().toISOString(); cache[ip] = info; infoByIp.set(ip, info); checked++; }
+      else infoByIp.set(ip, { country: '', org: '', isp: '', asn: '', source: 'failed' });
     }
   });
-  await Promise.all(workers);
-  // 超出预算 / 超出 IP_CHECK_MAX 的标 unknown
+  await Promise.all(mworkers);
+  // 初判
+  for (const ip of toCheckAll) {
+    const info = infoByIp.get(ip) || { country: '', org: '', isp: '', asn: '', source: 'failed' };
+    const verdict = info.country ? classifyIp(info, ip) : 'unknown';
+    for (const n of ipToNodes.get(ip)) {
+      n.verdict = verdict;
+      n.country = info.country || inferCountryFromRemark(n.remark);
+      n.org = info.org || '';
+      n.asn = info.asn || '';
+      n.ipInfo = info;
+    }
+  }
+  // 第二层：只查初筛家宽候选（proxycheck，需 key；没 key 跳过）
+  const candidates = [...new Set(toCheckAll.filter((ip) => ipToNodes.get(ip).some((n) => n.verdict === 'residential')))];
+  stats.proxycheck = { enabled: Boolean(PROXYCHECK_KEYS.length), keys: PROXYCHECK_KEYS.length, reason: PROXYCHECK_KEYS.length ? 'ok' : 'no key', checked: 0, confirmed: 0 };
+  if (candidates.length && PROXYCHECK_KEYS.length) {
+    let ci = 0;
+    const cworkers = Array.from({ length: Math.min(4, candidates.length) }, async () => {
+      while (ci < candidates.length) {
+        if (Date.now() > deadline) break;
+        const ip = candidates[ci++];
+        const pc = await checkProxycheck(ip);
+        stats.proxycheck.checked++;
+        if (!pc) continue;
+        const info = infoByIp.get(ip);
+        if (info) { info.proxycheckType = pc.type; info.proxycheckRisk = pc.risk; info.proxycheckSource = 'proxycheck'; cache[ip] = info; }
+        // 确认家宽：type==Residential 且 proxy/vpn/tor/hosting 全 false
+        const confirmed = pc.type === 'Residential' && !pc.proxy && !pc.vpn && !pc.tor && !pc.hosting;
+        if (confirmed) {
+          stats.proxycheck.confirmed++;
+          for (const n of ipToNodes.get(ip)) {
+            n.verdict = 'residential';
+            n.score = pc.risk === null ? null : Math.max(0, 100 - pc.risk);
+            n.risk = pc.risk;
+            n.proxycheckType = pc.type;
+          }
+        } else {
+          // 第二层否决：不是住宅类型，或有代理/VPN/机房标记
+          for (const n of ipToNodes.get(ip)) {
+            if (n.verdict === 'residential') { n.verdict = 'datacenter'; n.score = pc.risk === null ? null : Math.max(0, 100 - pc.risk); n.risk = pc.risk; n.proxycheckType = pc.type; }
+          }
+        }
+      }
+    });
+    await Promise.all(cworkers);
+  } else if (candidates.length) {
+    for (const ip of candidates) for (const n of ipToNodes.get(ip)) { n.score = null; n.risk = null; }
+  }
+  // 超出范围的标 unknown
   for (const ip of uniqueIps) {
     for (const n of ipToNodes.get(ip)) {
-      if (!n.verdict) { n.verdict = 'unknown'; n.country = n.country || ''; }
+      if (!n.verdict) { n.verdict = 'unknown'; n.country = n.country || inferCountryFromRemark(n.remark); }
+      if (n.score === undefined) { n.score = null; n.risk = null; }
     }
+  }
+  // per-IP 明细进 stats（不含任何 key）
+  for (const ip of uniqueIps) {
+    const ns = ipToNodes.get(ip);
+    const first = ns[0];
+    const info = first.ipInfo || {};
+    stats.ipDetails[ip] = {
+      country: first.country || '', verdict: first.verdict || 'unknown',
+      org: first.org || '', asn: first.asn || '',
+      score: first.score ?? null, risk: first.risk ?? null,
+      proxycheckType: first.proxycheckType || info.proxycheckType || null,
+      tcp_ms: ns.map((n) => n.tcp_ms).filter((v) => v !== null && v !== undefined).sort((a, b) => a - b)[0] ?? null,
+      tls_ms: ns.map((n) => n.tls_ms).filter((v) => v !== null && v !== undefined).sort((a, b) => a - b)[0] ?? null,
+      source: info.source || '',
+    };
   }
   mkdirSync(OUT_DIR, { recursive: true });
   writeFileSync(IP_CACHE_FILE, JSON.stringify(cache, null, 2) + '\n', 'utf8');
   stats.ipChecked = checked;
   stats.ipCacheHits = cacheHits;
-  console.log(`\n家宽筛查：唯一 IP ${uniqueIps.length} 个，本轮新查 ${checked} 个，缓存命中 ${cacheHits} 个`);
+  console.log(`\n家宽筛查：唯一 IP ${uniqueIps.length} 个，本轮新查 ${checked} 个，缓存命中 ${cacheHits} 个，proxycheck 第二层 ${stats.proxycheck.enabled ? `已查 ${stats.proxycheck.checked} 个、确认 ${stats.proxycheck.confirmed} 个` : '跳过（无 key）'}`);
+}
+
+// ---------- 自动重命名 ----------
+function rewriteUri(node, newName) {
+  const uri = node.uri;
+  const scheme = node.protocol;
+  try {
+    if (scheme === 'vmess') {
+      const o = JSON.parse(b64decode(uri.slice('vmess://'.length)));
+      o.ps = newName;
+      return 'vmess://' + Buffer.from(JSON.stringify(o), 'utf8').toString('base64');
+    }
+    if (scheme === 'ssr') {
+      // ssr 备注在 remarks= 参数里（base64），尽力改，改不了就保留原链接
+      const body = uri.slice('ssr://'.length);
+      const hashIdx = body.indexOf('#');
+      const core = hashIdx >= 0 ? body.slice(0, hashIdx) : body;
+      const dec = b64decode(core);
+      if (!dec.includes('/?')) return uri;
+      const [head, query] = dec.split('/?');
+      const params = new URLSearchParams(query);
+      if (params.has('remarks')) {
+        params.set('remarks', Buffer.from(newName, 'utf8').toString('base64').replace(/=+$/, ''));
+        const rebuilt = head + '/?' + params.toString();
+        return 'ssr://' + Buffer.from(rebuilt, 'utf8').toString('base64') + '#' + encodeURIComponent(newName);
+      }
+      return uri;
+    }
+    // 其余协议：替换 # 后面的 remark
+    const base = uri.split('#')[0];
+    return base + '#' + encodeURIComponent(newName);
+  } catch { return uri; }
+}
+
+function renameNodes(nodes) {
+  // 分组：国家 + 家宽/普通，组内按 tcp_ms 升序、IP、host、端口确定性排序
+  const groups = new Map();
+  for (const n of nodes) {
+    const country = n.country || inferCountryFromRemark(n.remark) || '';
+    n.country = country;
+    const key = `${country || 'XX'}|${n.verdict === 'residential' ? 'jia' : 'normal'}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(n);
+  }
+  for (const [key, list] of groups) {
+    list.sort((a, b) =>
+      (a.tcp_ms ?? 999999) - (b.tcp_ms ?? 999999) ||
+      String(a.ip || '').localeCompare(String(b.ip || '')) ||
+      String(a.host || '').localeCompare(String(b.host || '')) ||
+      (a.port || 0) - (b.port || 0) ||
+      String(a.protocol || '').localeCompare(String(b.protocol || '')));
+    const [country, kind] = key.split('|');
+    const zh = countryZh(country);
+    list.forEach((n, i) => {
+      const num = String(i + 1).padStart(3, '0');
+      let newName;
+      if (kind === 'jia') {
+        newName = (n.score !== null && n.score !== undefined)
+          ? `${zh}-家宽-${n.score}分-${num}`
+          : `${zh}-家宽-${num}`;
+      } else {
+        newName = `${zh}-${num}`;
+      }
+      n.originalRemark = n.remark || '';
+      n.remark = newName;
+      n.uri = rewriteUri(n, newName);
+    });
+  }
+  stats.renamed = nodes.length;
+  stats.sampleRenamed = nodes.slice(0, 20).map((n) => ({ from: n.originalRemark || '', to: n.remark, ip: n.ip || '', country: n.country || '', verdict: n.verdict || '', tcp_ms: n.tcp_ms ?? null }));
+  return nodes;
 }
 
 // ---------- 主流程 ----------
@@ -672,6 +973,10 @@ async function main() {
     stats.dead = before - nodes.length;
     console.log(`\nTCP 检测：${before} → ${nodes.length}（剔除 ${stats.dead}）`);
   }
+  if (TLS_CHECK) {
+    try { await filterTls(nodes, 32); console.log('TLS 握手检测：443 端口节点已测 tls_ms'); }
+    catch (err) { console.log(`[warn] TLS 检测失败（不影响主订阅）：${err?.message || err}`); }
+  }
 
   // 兜底：检测后太少就退回未检测的结果，避免把订阅清空
   if (nodes.length < MIN_NODES && collected.length >= MIN_NODES) {
@@ -693,8 +998,11 @@ async function main() {
     try { await checkResidential(nodes); }
     catch (err) { console.log(`[warn] 家宽筛查失败（主订阅不受影响）：${err?.message || err}`); }
   } else {
-    for (const n of nodes) { n.verdict = 'unknown'; n.country = ''; }
+    for (const n of nodes) { n.verdict = 'unknown'; n.country = inferCountryFromRemark(n.remark); n.score = null; n.risk = null; }
   }
+  // ---- 自动重命名（全部节点，确定性编号） ----
+  renameNodes(nodes);
+  console.log(`重命名：${stats.renamed} 条，示例：${stats.sampleRenamed.slice(0, 5).map((s) => s.to).join('、')}`);
   const residential = nodes.filter((n) => n.verdict === 'residential');
   const usResidential = residential.filter((n) => n.country === 'US');
   const usOnly = nodes.filter((n) => n.country === 'US' || (n.country === '' && /美国|united states/i.test(n.remark || '')));
@@ -744,8 +1052,8 @@ async function main() {
   writeFileSync(path.join(OUT_DIR, 'v2ray.txt'), plain, 'utf8');
   writeFileSync(path.join(OUT_DIR, 'base64.txt'), base64 + '\n', 'utf8');
   writeFileSync(path.join(OUT_DIR, 'clash.yaml'), buildClashYaml(clashProxies), 'utf8');
-  writeFileSync(path.join(OUT_DIR, 'jia-kuan.txt'), (jkSorted.map((n) => n.uri).join('\n') + (jkSorted.length ? '\n' : '')), 'utf8');
-  writeFileSync(path.join(OUT_DIR, 'us-residential.txt'), (usResidential.map((n) => n.uri).join('\n') + (usResidential.length ? '\n' : '')), 'utf8');
+  writeFileSync(path.join(OUT_DIR, 'jia-kuan.txt'), (jkSorted.map((n) => n.uri).join('\n') + (jkSorted.length ? '\n' : '# 家宽：0 条（本轮未筛到）\n')), 'utf8');
+  writeFileSync(path.join(OUT_DIR, 'us-residential.txt'), (usResidential.length ? usResidential.map((n) => n.uri).join('\n') + '\n' : '# 美国真住宅：0 条（本轮未筛到，154.85.1.3 已在 ip.net.coffee 复核为机房）\n'), 'utf8');
   writeFileSync(path.join(OUT_DIR, 'us-only.txt'), (usOnly.map((n) => n.uri).join('\n') + (usOnly.length ? '\n' : '')), 'utf8');
   writeFileSync(path.join(OUT_DIR, 'stats.json'), JSON.stringify(stats, null, 2) + '\n', 'utf8');
 
