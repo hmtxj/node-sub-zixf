@@ -39,6 +39,8 @@ jobs:
           RESIDENTIAL_CHECK: '1'
           RESIDENTIAL_CONCURRENCY: '16'
           RESIDENTIAL_BUDGET_MS: '600000'
+          PROXYCHECK_KEY: ${{ secrets.PROXYCHECK_KEY }}
+          PROXYCHECK_KEY_2: ${{ secrets.PROXYCHECK_KEY_2 }}
           GIST_ID: ${{ vars.GIST_ID }}
           GH_TOKEN: ${{ secrets.GIST_PAT }}
         run: node fetch-nodes.mjs
@@ -52,11 +54,11 @@ jobs:
             if(!fs.existsSync("sub/stats.json")){console.log("没有 stats.json");process.exit(0)}
             const s=JSON.parse(fs.readFileSync("sub/stats.json","utf8"));
             const rows=[["有效节点",s.total],["抓取原始",s.raw],["广告/通知过滤",s.junk],["保留但重复丢弃",s.duplicate],["同端口限量丢弃",s.hostCap],["连通性检测剔除",s.dead],["家宽（住宅 ISP）",s.jiaKuan],["美国真住宅",s.usResidential],["美国全部",s.usTotal],["静态 ISP",s.staticIsp],["机房",s.datacenter],["ASN 未知",s.ipUnknown],["Clash 可导入",s.clashProxies]];
-            console.log("| 项目 | 数量 |\n|---|---|");
+            console.log("| 项目 | 数量 |\n|---|");
             for(const [k,v] of rows) console.log(`| ${k} | ${v} |`);
-            console.log("\n| 协议 | 数量 |\n|---|---|");
+            console.log("\n| 协议 | 数量 |\n|---|");
             for(const [k,v] of Object.entries(s.byProtocol||{}).sort((a,b)=>b[1]-a[1])) console.log(`| ${k} | ${v} |`);
-            console.log("\n| 源 | 结果 |\n|---|---|");
+            console.log("\n| 源 | 结果 |\n|---|");
             for(const src of s.sources) console.log(`| ${src.url.replace("https://raw.githubusercontent.com/","")} | ${src.ok?src.kept+" 条":("失败: "+String(src.error).slice(0,60))} |`);
           ' >> $GITHUB_STEP_SUMMARY
 
