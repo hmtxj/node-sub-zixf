@@ -32,6 +32,15 @@
  *   重命名：全部节点按国家（中文）+ 家宽/普通分组，组内按 tcp_ms 升序编号，
  *   家宽：美国-家宽-001 / 美国-家宽-100分-001（分数仅来自 proxycheck risk），
  *   普通：美国-001、日本-002；排序确定性（国家→延迟→IP），编号不乱跳。
+ * 家宽累积（v3，2026-11-22）：历轮筛到的家宽永不丢——存档文件 sub/jia-kuan-archive.json，
+ *   每轮先读存档 + 旧 sub/jia-kuan.txt（迁移兜底），新家宽并入存档（按 协议|host|port 去重，
+ *   同一 host:port 只留一条，211.178.105.134:6123 的两条 ss 就是这么合并的）；
+ *   存档里本轮没出现的家宽每轮都重新 TCP 复核，活着就复活进订阅，死了只标 dead=true
+ *   不进订阅、但永远留在存档里（不自动删除，只能手动删）。sub/jia-kuan.txt 是
+ *   累积后的活家宽，不是本轮的 2-8 条。
+ * 家宽优先：全部输出（v2ray.txt / base64.txt / clash.yaml / jia-kuan.txt）里家宽
+ *   永远排最前面（不分国家），再排其余节点；Clash 里 🏠 家宽组和 🚀 节点选择的
+ *   前排也都是家宽。
  *
  * 可选：同时设置 GIST_ID 与 GH_TOKEN 环境变量时，顺手把订阅同步到该 gist。
  * 环境变量开关：TCP_CHECK=0 关连通性检测；MIN_NODES=20 低于此数认为抓取异常；
@@ -51,6 +60,8 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = path.join(HERE, 'sub');
 const SOURCES_FILE = path.join(HERE, 'sources.txt');
 const IP_CACHE_FILE = path.join(OUT_DIR, 'ip-cache.json');
+const ARCHIVE_FILE = path.join(OUT_DIR, 'jia-kuan-archive.json');
+const JIA_KUAN_FILE = path.join(OUT_DIR, 'jia-kuan.txt');
 
 const TCP_CHECK = process.env.TCP_CHECK !== '0';
 const TCP_TIMEOUT_MS = Number(process.env.TCP_TIMEOUT_MS || 3000);
@@ -149,6 +160,11 @@ const stats = {
   total: 0,
   byProtocol: {},
   jiaKuan: 0,
+  jiaKuanTotal: 0, // 累积活家宽（与 jiaKuan 同值，显式字段）
+  jiaKuanNew: 0, // 本轮新筛到的家宽
+  jiaKuanArchived: 0, // 本轮从存档复活的家宽
+  jiaKuanDead: 0, // 存档里本轮复核失败、被排除的家宽（仍在存档里）
+  jiaKuanArchiveSize: 0, // 存档总条数（活+死）
   usResidential: 0,
   usTotal: 0,
   staticIsp: 0,
@@ -588,6 +604,7 @@ function buildClashYaml(proxies) {
   const names = proxies.map((p) => p.name);
   const usNames = proxies.filter((p) => p._verdict === 'residential' && p._country === 'US').map((p) => p.name);
   const jkNames = proxies.filter((p) => p._verdict === 'residential').map((p) => p.name);
+  const otherNames = proxies.filter((p) => p._verdict !== 'residential').map((p) => p.name);
   const doc = {
     'mixed-port': 7890,
     'allow-lan': false,
@@ -596,7 +613,7 @@ function buildClashYaml(proxies) {
     'external-controller': '127.0.0.1:9090',
     proxies,
     'proxy-groups': [
-      { name: '🚀 节点选择', type: 'select', proxies: ['🇺🇸 美国住宅', '🏠 家宽', ...names.slice(0, 200)] },
+      { name: '🚀 节点选择', type: 'select', proxies: ['🇺🇸 美国住宅', '🏠 家宽', ...jkNames, ...otherNames.slice(0, Math.max(0, 200 - jkNames.length))] },
       { name: '🇺🇸 美国住宅', type: 'select', proxies: usNames.length ? usNames : ['DIRECT'] },
       { name: '🏠 家宽', type: 'select', proxies: jkNames.length ? jkNames : ['DIRECT'] },
     ],
@@ -851,6 +868,187 @@ async function checkResidential(nodes) {
   console.log(`\n家宽筛查：唯一 IP ${uniqueIps.length} 个，本轮新查 ${checked} 个，缓存命中 ${cacheHits} 个，proxycheck 第二层 ${stats.proxycheck.enabled ? `已查 ${stats.proxycheck.checked} 个、确认 ${stats.proxycheck.confirmed} 个` : '跳过（无 key）'}`);
 }
 
+// ---------- 家宽累积存档 ----------
+// 存档键：协议|host|port。同一 host:port 只留一条（凭据不同也算同一端点，
+// 211.178.105.134:6123 的两条 ss 就是这么合并成一条的）。
+function archiveKeyOf(node) {
+  return `${String(node.protocol || '').toLowerCase()}|${String(node.host || '').toLowerCase()}|${Number(node.port) || 0}`;
+}
+function countryFromRemarkZh(remark) {
+  const r = String(remark || '');
+  const m = /^([^\s-]+)-家宽/.exec(r);
+  if (m && ZH_COUNTRY[m[1]]) return ZH_COUNTRY[m[1]];
+  for (const [zh, code] of Object.entries(ZH_COUNTRY)) if (r.startsWith(zh)) return code;
+  return '';
+}
+function scoreFromRemark(remark) {
+  const m = /-(\d+)分-/.exec(String(remark || ''));
+  return m ? Number(m[1]) : null;
+}
+function recordFromNode(n) {
+  const now = new Date().toISOString();
+  return {
+    key: archiveKeyOf(n), protocol: n.protocol, host: n.host, port: n.port, ip: n.ip || '',
+    uri: n.uri, remark: n.remark || '', country: n.country || '', org: n.org || '', asn: n.asn || '',
+    score: n.score ?? null, risk: n.risk ?? null, proxycheckType: n.proxycheckType || null,
+    tcp_ms: n.tcp_ms ?? null, tls_ms: n.tls_ms ?? null,
+    firstSeen: now, lastSeen: now, lastAlive: now, dead: false, deadCount: 0,
+  };
+}
+function loadResidentialArchive() {
+  const map = new Map();
+  const add = (rec) => {
+    if (rec && rec.key && rec.host && rec.port && !map.has(rec.key)) map.set(rec.key, rec);
+  };
+  // 1) 存档文件是权威来源
+  if (existsSync(ARCHIVE_FILE)) {
+    try {
+      const arr = JSON.parse(readFileSync(ARCHIVE_FILE, 'utf8'));
+      if (Array.isArray(arr)) for (const r of arr) add(r);
+    } catch (e) { console.log(`[warn] 家宽存档损坏，忽略：${e?.message || e}`); }
+  }
+  // 2) 迁移兜底：存档不存在时，从仓库里已有的旧 jia-kuan.txt 里恢复
+  if (existsSync(JIA_KUAN_FILE)) {
+    try {
+      const now = new Date().toISOString();
+      for (const line of readFileSync(JIA_KUAN_FILE, 'utf8').split(/\r?\n/)) {
+        const uri = line.trim();
+        if (!SCHEME_RE.test(uri)) continue;
+        const n = parseNode(uri);
+        n.uri = uri;
+        const key = archiveKeyOf(n);
+        if (!key || map.has(key)) continue;
+        const country = countryFromRemarkZh(n.remark) || inferCountryFromRemark(n.remark);
+        add({
+          key, protocol: n.protocol, host: n.host, port: n.port, ip: '', uri,
+          remark: n.remark || '', country, org: '', asn: '',
+          score: scoreFromRemark(n.remark), risk: null, proxycheckType: null,
+          tcp_ms: null, tls_ms: null, firstSeen: now, lastSeen: now, lastAlive: now,
+          dead: false, deadCount: 0,
+        });
+      }
+    } catch (e) { console.log(`[warn] 读取旧 jia-kuan.txt 失败：${e?.message || e}`); }
+  }
+  return map;
+}
+function saveResidentialArchive(map) {
+  const arr = [...map.values()].sort((a, b) =>
+    String(a.country || '').localeCompare(String(b.country || '')) ||
+    String(a.firstSeen || '').localeCompare(String(b.firstSeen || '')) ||
+    String(a.key || '').localeCompare(String(b.key || '')));
+  mkdirSync(OUT_DIR, { recursive: true });
+  writeFileSync(ARCHIVE_FILE, JSON.stringify(arr, null, 2) + '\n', 'utf8');
+  return arr;
+}
+async function mergeResidentialArchive(nodes) {
+  const archive = loadResidentialArchive();
+  const now = new Date().toISOString();
+  // 1) 本轮家宽去重：同一 协议|host|port 只留 tcp 最快的一条
+  const seenRes = new Map();
+  let deduped = 0;
+  for (let i = nodes.length - 1; i >= 0; i--) {
+    const n = nodes[i];
+    if (n.verdict !== 'residential') continue;
+    const k = archiveKeyOf(n);
+    if (!k) continue;
+    const prev = seenRes.get(k);
+    if (!prev) { seenRes.set(k, n); continue; }
+    if ((n.tcp_ms ?? 999999) < (prev.tcp_ms ?? 999999)) {
+      const idx = nodes.indexOf(prev);
+      if (idx >= 0) nodes.splice(idx, 1);
+      seenRes.set(k, n);
+    } else {
+      nodes.splice(i, 1);
+    }
+    deduped++;
+    stats.duplicate++;
+  }
+  const presentKeys = new Set(seenRes.keys());
+  const newKeys = [...presentKeys].filter((k) => !archive.has(k));
+  const jiaKuanNew = newKeys.length;
+  // 2) 存档里本轮没出现的家宽，每轮都重新 TCP 复核（无论之前死活）
+  const missing = [...archive.values()].filter((r) => !presentKeys.has(r.key));
+  let archived = 0;
+  let dead = 0;
+  let mi = 0;
+  const workers = Array.from({ length: Math.min(16, missing.length || 1) }, async () => {
+    while (mi < missing.length) {
+      const rec = missing[mi++];
+      const r = await tcpCheck(rec.host, rec.port);
+      if (r.ok) {
+        const n = parseNode(rec.uri);
+        n.uri = rec.uri; n.host = rec.host; n.port = rec.port; n.protocol = rec.protocol;
+        n.remark = rec.remark; n.country = rec.country; n.verdict = 'residential';
+        n.org = rec.org || ''; n.asn = rec.asn || ''; n.score = rec.score ?? null;
+        n.risk = rec.risk ?? null; n.proxycheckType = rec.proxycheckType || null;
+        n.ip = rec.ip || ''; n.tcp_ms = r.ms; n.tls_ms = null; n.fromArchive = true;
+        if (n.port === 443) n.tls_ms = await tlsCheck(n.host, n.port);
+        nodes.push(n);
+        rec.dead = false; rec.deadCount = 0; rec.lastAlive = now; rec.lastSeen = now; rec.tcp_ms = r.ms;
+        archived++;
+      } else {
+        rec.dead = true; rec.deadCount = (rec.deadCount || 0) + 1; rec.lastChecked = now;
+        dead++;
+      }
+    }
+  });
+  await Promise.all(workers);
+  // 3) 本轮新家宽进存档（先占位，rename 后再同步新名字/链接）
+  for (const k of newKeys) {
+    const n = seenRes.get(k);
+    if (n) archive.set(k, recordFromNode(n));
+  }
+  // 4) 本轮出现的存档节点：刷新存活信息，但国家以存档里首次记录的为准
+  // （IP 库不同轮次会把同一 IP 判成不同国家，如 87.254.31.23 这轮 ipinfo 说 IN、
+  //  上轮说 GB；国家一变名字和编号就跟着跳，所以存档节点的国家永不改写，
+  //  保持名字稳定；想改只能手动删存档条目）
+  for (const [k, n] of seenRes) {
+    const rec = archive.get(k);
+    if (rec) {
+      if (rec.country) n.country = rec.country;
+      if (rec.score !== null && rec.score !== undefined && (n.score === null || n.score === undefined)) n.score = rec.score;
+      rec.dead = false; rec.deadCount = 0; rec.lastSeen = now; rec.lastAlive = now; rec.tcp_ms = n.tcp_ms ?? rec.tcp_ms; rec.ip = n.ip || rec.ip;
+    }
+  }
+  console.log(`家宽累积：存档 ${archive.size} 条，本轮新家宽 ${jiaKuanNew} 条，存档复活 ${archived} 条，存档复核失败 ${dead} 条（保留在存档里，本轮不输出），本轮家宽去重 ${deduped} 条`);
+  return { archive, jiaKuanNew, jiaKuanArchived: archived, jiaKuanDead: dead };
+}
+function syncResidentialArchive(archive, nodes, info) {
+  const now = new Date().toISOString();
+  for (const n of nodes) {
+    if (n.verdict !== 'residential') continue;
+    const k = archiveKeyOf(n);
+    const rec = archive.get(k);
+    if (rec) {
+      rec.uri = n.uri; rec.remark = n.remark; rec.country = n.country;
+      rec.org = n.org || rec.org; rec.asn = n.asn || rec.asn;
+      rec.score = n.score ?? rec.score; rec.risk = n.risk ?? rec.risk;
+      rec.proxycheckType = n.proxycheckType || rec.proxycheckType;
+      rec.tcp_ms = n.tcp_ms ?? rec.tcp_ms; rec.tls_ms = n.tls_ms ?? rec.tls_ms;
+      rec.ip = n.ip || rec.ip; rec.lastSeen = now; rec.lastAlive = now; rec.dead = false; rec.deadCount = 0;
+    } else {
+      archive.set(k, recordFromNode(n));
+    }
+  }
+  const arr = saveResidentialArchive(archive);
+  stats.jiaKuanArchived = info.jiaKuanArchived;
+  stats.jiaKuanDead = info.jiaKuanDead;
+  stats.jiaKuanNew = info.jiaKuanNew;
+  stats.jiaKuanArchiveSize = arr.length;
+  return arr;
+}
+// 家宽永远排最前面（不分国家），再排其余节点；组内按国家、延迟、IP
+function sortResidentialFirst(list) {
+  const rank = (n) => (n.verdict === 'residential' ? 0 : n.verdict === 'static-isp' ? 1 : 2);
+  return [...list].sort((a, b) =>
+    rank(a) - rank(b) ||
+    String(a.country || '').localeCompare(String(b.country || '')) ||
+    (a.tcp_ms ?? 999999) - (b.tcp_ms ?? 999999) ||
+    String(a.ip || '').localeCompare(String(b.ip || '')) ||
+    String(a.host || '').localeCompare(String(b.host || '')) ||
+    (a.port || 0) - (b.port || 0));
+}
+
 // ---------- 自动重命名 ----------
 function rewriteUri(node, newName) {
   const uri = node.uri;
@@ -1000,13 +1198,21 @@ async function main() {
   } else {
     for (const n of nodes) { n.verdict = 'unknown'; n.country = inferCountryFromRemark(n.remark); n.score = null; n.risk = null; }
   }
+  // ---- 家宽累积：存档复活 + 本轮新家宽进存档（rename 之前做，复活的节点一起重命名） ----
+  const archiveInfo = await mergeResidentialArchive(nodes);
+  stats.total = nodes.length; // 去重/复活后重新计数
   // ---- 自动重命名（全部节点，确定性编号） ----
   renameNodes(nodes);
+  // ---- 家宽优先：全部输出里家宽排最前面（不分国家） ----
+  nodes = sortResidentialFirst(nodes);
+  // ---- 存档同步：按重命名后的链接/名字写回存档并落盘 ----
+  syncResidentialArchive(archiveInfo.archive, nodes, archiveInfo);
   console.log(`重命名：${stats.renamed} 条，示例：${stats.sampleRenamed.slice(0, 5).map((s) => s.to).join('、')}`);
   const residential = nodes.filter((n) => n.verdict === 'residential');
   const usResidential = residential.filter((n) => n.country === 'US');
   const usOnly = nodes.filter((n) => n.country === 'US' || (n.country === '' && /美国|united states/i.test(n.remark || '')));
   stats.jiaKuan = residential.length;
+  stats.jiaKuanTotal = residential.length; // 累积活家宽
   stats.usResidential = usResidential.length;
   stats.usTotal = usOnly.length;
   stats.staticIsp = nodes.filter((n) => n.verdict === 'static-isp').length;
@@ -1019,7 +1225,7 @@ async function main() {
 
   // ---- Clash YAML（美国住宅优先，其次其他家宽，其次其余；名字去重） ----
   const sorted = [...nodes].sort((a, b) => {
-    const rank = (n) => (n.verdict === 'residential' && n.country === 'US' ? 0 : n.verdict === 'residential' ? 1 : n.verdict === 'static-isp' ? 2 : 3);
+    const rank = (n) => (n.verdict === 'residential' ? 0 : n.verdict === 'static-isp' ? 1 : 2);
     return rank(a) - rank(b);
   });
   const nameSeen = new Map();
@@ -1046,7 +1252,7 @@ async function main() {
   const lines = nodes.map((n) => n.uri);
   const plain = lines.join('\n') + '\n';
   const base64 = Buffer.from(plain, 'utf8').toString('base64');
-  const jkSorted = [...residential].sort((a, b) => Number(b.country === 'US') - Number(a.country === 'US') || String(a.remark).localeCompare(String(b.remark)));
+  const jkSorted = residential; // 已是家宽优先排序（国家→延迟），就是累积后的活家宽
 
   mkdirSync(OUT_DIR, { recursive: true });
   writeFileSync(path.join(OUT_DIR, 'v2ray.txt'), plain, 'utf8');

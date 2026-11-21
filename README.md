@@ -68,6 +68,10 @@ https://gh-proxy.com/https://raw.githubusercontent.com/hmtxj/node-sub-zixf/main/
   China Mobile、T-Mobile、Hargray 等家庭宽带运营商的，算真家宽；ASN 是住宅 ISP 但使用者是机房公司的，单列为“静态 ISP”，不算真家宽。
 - 没有单一官方“人类指数”，这里不编分数，查不到的标 unknown。结果写在 `sub/stats.json` 里（`jiaKuan` / `usResidential` / `usTotal` / `staticIsp` / `datacenter` / `ipUnknown`）。
 - 查过的 IP 会缓存到 `sub/ip-cache.json`，下次只查新 IP，省额度、跑得快。
+- **家宽会累积，不会丢**：历轮筛到的家宽都存在 `sub/jia-kuan-archive.json` 里（按 `协议|host|port` 去重），
+  每轮先把存档里的家宽重新 TCP 复核一遍，活着的复活进订阅，死了的只标 `dead`、不进订阅、但永远留在存档里
+  （不自动删除，只能手动删）。所以 `sub/jia-kuan.txt` 是累积后的活家宽，不是某一轮的 2–8 条。
+  全部输出（base64 / v2ray / clash）里家宽永远排最前面，不分国家。
 
 ## 它比"随手找个免费订阅"好在哪
 
@@ -95,7 +99,8 @@ sources.txt ──抓取──▶ 解码(base64/明文) ──▶ 清洗 ──�
 | `sub/clash.yaml` | **Clash / Mihomo 完整配置（直接导入）** |
 | `sub/base64.txt` | **base64 订阅（v2rayN 客户端填这个）** |
 | `sub/v2ray.txt` | 明文节点列表 |
-| `sub/jia-kuan.txt` | 真家宽节点链接（美国优先） |
+| `sub/jia-kuan.txt` | 真家宽节点链接（**累积**的活家宽，排最前面） |
+| `sub/jia-kuan-archive.json` | 家宽累积存档（历轮家宽，含已死的，永不自动删除） |
 | `sub/us-residential.txt` | 美国真住宅节点链接 |
 | `sub/us-only.txt` | 美国全部节点链接 |
 | `sub/stats.json` | 本次抓取统计：每个源成功几条、剔除多少死节点、家宽计数 |
