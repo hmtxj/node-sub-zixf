@@ -146,7 +146,7 @@ const COUNTRY_ZH = {
   MM: '缅甸', NP: '尼泊尔', LK: '斯里兰卡', BD: '孟加拉', PK: '巴基斯坦',
 };
 const ZH_COUNTRY = { '美国': 'US', '中国': 'CN', '香港': 'HK', '台湾': 'TW', '澳门': 'MO', '日本': 'JP', '韩国': 'KR', '新加坡': 'SG', '德国': 'DE', '荷兰': 'NL', '法国': 'FR', '英国': 'GB', '意大利': 'IT', '西班牙': 'ES', '加拿大': 'CA', '澳大利亚': 'AU', '俄罗斯': 'RU', '乌克兰': 'UA', '波兰': 'PL' };
-function countryZh(code) { return COUNTRY_ZH[String(code || '').toUpperCase()] || String(code || '未知'); }
+function countryZh(code) { const c = String(code || '').toUpperCase(); if (!c || c === 'XX') return '未知'; return COUNTRY_ZH[c] || '未知'; }
 
 const stats = {
   updated: new Date().toISOString(),
@@ -987,8 +987,24 @@ async function mergeResidentialArchive(nodes) {
         rec.dead = false; rec.deadCount = 0; rec.lastAlive = now; rec.lastSeen = now; rec.tcp_ms = r.ms;
         archived++;
       } else {
-        rec.dead = true; rec.deadCount = (rec.deadCount || 0) + 1; rec.lastChecked = now;
-        dead++;
+        rec.deadCount = (rec.deadCount || 0) + 1;
+        rec.lastChecked = now;
+        // 家宽死一次不丢：连续死满 3 轮才拿掉，3 轮以内照样放进订阅
+        // （GitHub 那边测不通不代表节点死了，本地测着还是活的，不能一轮就杀掉）
+        if (rec.deadCount < 3) {
+          const n = parseNode(rec.uri);
+          n.uri = rec.uri; n.host = rec.host; n.port = rec.port; n.protocol = rec.protocol;
+          n.remark = rec.remark; n.country = rec.country; n.verdict = 'residential';
+          n.org = rec.org || ''; n.asn = rec.asn || ''; n.score = rec.score ?? null;
+          n.risk = rec.risk ?? null; n.proxycheckType = rec.proxycheckType || null;
+          n.ip = rec.ip || ''; n.tcp_ms = rec.tcp_ms ?? 999999; n.tls_ms = null; n.fromArchive = true;
+          nodes.push(n);
+          rec.dead = false;
+          archived++;
+        } else {
+          rec.dead = true;
+          dead++;
+        }
       }
     }
   });
@@ -1038,11 +1054,16 @@ function syncResidentialArchive(archive, nodes, info) {
   return arr;
 }
 // 家宽永远排最前面（不分国家），再排其余节点；组内按国家、延迟、IP
+// 查不到国家的（'' / 'XX' / '未知'）永远排最后面，绝不排前面
 function sortResidentialFirst(list) {
   const rank = (n) => (n.verdict === 'residential' ? 0 : n.verdict === 'static-isp' ? 1 : 2);
+  const countryKey = (n) => {
+    const c = String(n.country || '').toUpperCase();
+    return (!c || c === 'XX' || c === '未知') ? '\uffff' : c;
+  };
   return [...list].sort((a, b) =>
     rank(a) - rank(b) ||
-    String(a.country || '').localeCompare(String(b.country || '')) ||
+    countryKey(a).localeCompare(countryKey(b)) ||
     (a.tcp_ms ?? 999999) - (b.tcp_ms ?? 999999) ||
     String(a.ip || '').localeCompare(String(b.ip || '')) ||
     String(a.host || '').localeCompare(String(b.host || '')) ||
@@ -1087,7 +1108,7 @@ function renameNodes(nodes) {
   for (const n of nodes) {
     const country = n.country || inferCountryFromRemark(n.remark) || '';
     n.country = country;
-    const key = `${country || 'XX'}|${n.verdict === 'residential' ? 'jia' : 'normal'}`;
+    const key = `${country || '未知'}|${n.verdict === 'residential' ? 'jia' : 'normal'}`;
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(n);
   }

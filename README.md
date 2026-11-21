@@ -69,8 +69,9 @@ https://gh-proxy.com/https://raw.githubusercontent.com/hmtxj/node-sub-zixf/main/
 - 没有单一官方“人类指数”，这里不编分数，查不到的标 unknown。结果写在 `sub/stats.json` 里（`jiaKuan` / `usResidential` / `usTotal` / `staticIsp` / `datacenter` / `ipUnknown`）。
 - 查过的 IP 会缓存到 `sub/ip-cache.json`，下次只查新 IP，省额度、跑得快。
 - **家宽会累积，不会丢**：历轮筛到的家宽都存在 `sub/jia-kuan-archive.json` 里（按 `协议|host|port` 去重），
-  每轮先把存档里的家宽重新 TCP 复核一遍，活着的复活进订阅，死了的只标 `dead`、不进订阅、但永远留在存档里
-  （不自动删除，只能手动删）。所以 `sub/jia-kuan.txt` 是累积后的活家宽，不是某一轮的 2–8 条。
+  每轮先把存档里的家宽重新 TCP 复核一遍，活着的复活进订阅；复核失败也不立刻丢，连续死满 3 轮才不进订阅，
+  3 轮以内照样留在订阅最前面（GitHub 那边测不通不代表节点死了）。死了的永远留在存档里，不自动删除，只能手动删。
+  所以 `sub/jia-kuan.txt` 是累积后的家宽，不是某一轮的 1–2 条。查不到国家的节点不叫 XX，叫“未知”，永远排最后面。
   全部输出（base64 / v2ray / clash）里家宽永远排最前面，不分国家。
 
 ## 它比"随手找个免费订阅"好在哪
