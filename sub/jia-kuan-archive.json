@@ -16,11 +16,11 @@
     "tcp_ms": 18,
     "tls_ms": null,
     "firstSeen": "2026-11-21T18:41:23.525Z",
-    "lastSeen": "2026-11-21T18:41:23.581Z",
-    "lastAlive": "2026-11-21T18:41:23.581Z",
-    "dead": true,
-    "deadCount": 1,
-    "lastChecked": "2026-11-21T18:58:55.869Z"
+    "lastSeen": "2026-11-21T19:51:08.949Z",
+    "lastAlive": "2026-11-21T19:51:08.949Z",
+    "dead": false,
+    "deadCount": 0,
+    "lastChecked": "2026-11-21T19:51:05.931Z"
   },
   {
     "key": "trojan|183.236.51.8|10819",
@@ -39,11 +39,11 @@
     "tcp_ms": 23,
     "tls_ms": null,
     "firstSeen": "2026-11-21T18:41:23.525Z",
-    "lastSeen": "2026-11-21T18:41:23.581Z",
-    "lastAlive": "2026-11-21T18:41:23.581Z",
-    "dead": true,
-    "deadCount": 1,
-    "lastChecked": "2026-11-21T18:58:55.869Z"
+    "lastSeen": "2026-11-21T19:51:08.949Z",
+    "lastAlive": "2026-11-21T19:51:08.949Z",
+    "dead": false,
+    "deadCount": 0,
+    "lastChecked": "2026-11-21T19:51:05.931Z"
   },
   {
     "key": "vmess|36.133.78.37|50013",
@@ -62,11 +62,11 @@
     "tcp_ms": 16,
     "tls_ms": null,
     "firstSeen": "2026-11-21T18:41:23.525Z",
-    "lastSeen": "2026-11-21T18:41:23.581Z",
-    "lastAlive": "2026-11-21T18:41:23.581Z",
-    "dead": true,
-    "deadCount": 1,
-    "lastChecked": "2026-11-21T18:58:55.869Z"
+    "lastSeen": "2026-11-21T19:51:08.949Z",
+    "lastAlive": "2026-11-21T19:51:08.949Z",
+    "dead": false,
+    "deadCount": 0,
+    "lastChecked": "2026-11-21T19:51:05.931Z"
   },
   {
     "key": "vmess|36.133.78.37|50017",
@@ -85,11 +85,11 @@
     "tcp_ms": 23,
     "tls_ms": null,
     "firstSeen": "2026-11-21T18:41:23.525Z",
-    "lastSeen": "2026-11-21T18:41:23.581Z",
-    "lastAlive": "2026-11-21T18:41:23.581Z",
-    "dead": true,
-    "deadCount": 1,
-    "lastChecked": "2026-11-21T18:58:55.869Z"
+    "lastSeen": "2026-11-21T19:51:08.949Z",
+    "lastAlive": "2026-11-21T19:51:08.949Z",
+    "dead": false,
+    "deadCount": 0,
+    "lastChecked": "2026-11-21T19:51:05.931Z"
   },
   {
     "key": "vmess|87.254.31.23|41647",
@@ -108,11 +108,11 @@
     "tcp_ms": 17,
     "tls_ms": null,
     "firstSeen": "2026-11-21T18:41:23.525Z",
-    "lastSeen": "2026-11-21T18:41:23.581Z",
-    "lastAlive": "2026-11-21T18:41:23.581Z",
-    "dead": true,
-    "deadCount": 1,
-    "lastChecked": "2026-11-21T18:58:55.869Z"
+    "lastSeen": "2026-11-21T19:51:08.949Z",
+    "lastAlive": "2026-11-21T19:51:08.949Z",
+    "dead": false,
+    "deadCount": 0,
+    "lastChecked": "2026-11-21T19:51:05.931Z"
   },
   {
     "key": "ss|211.178.105.134|6123",
@@ -120,19 +120,19 @@
     "host": "211.178.105.134",
     "port": 6123,
     "ip": "211.178.105.134",
-    "uri": "ss://YWVzLTI1Ni1jZmI6cXdlclJFV1FAQA@211.178.105.134:6123#%E9%9F%A9%E5%9B%BD-%E5%AE%B6%E5%AE%BD-001",
-    "remark": "韩国-家宽-001",
+    "uri": "ss://YWVzLTI1Ni1jZmI6cXdlclJFV1FAQA@211.178.105.134:6123#%E9%9F%A9%E5%9B%BD-%E5%AE%B6%E5%AE%BD-002",
+    "remark": "韩国-家宽-002",
     "country": "KR",
     "org": "AS9318 SK Broadband Co Ltd",
     "asn": "AS9318 SK Broadband Co Ltd",
     "score": null,
     "risk": null,
     "proxycheckType": "Residential",
-    "tcp_ms": 129,
+    "tcp_ms": 179,
     "tls_ms": null,
     "firstSeen": "2026-11-21T18:41:23.525Z",
-    "lastSeen": "2026-11-21T18:58:58.883Z",
-    "lastAlive": "2026-11-21T18:58:58.883Z",
+    "lastSeen": "2026-11-21T19:51:08.949Z",
+    "lastAlive": "2026-11-21T19:51:08.949Z",
     "dead": false,
     "deadCount": 0
   },
@@ -142,8 +142,8 @@
     "host": "112.169.175.199",
     "port": 31157,
     "ip": "112.169.175.199",
-    "uri": "vless://bd2fb303-b4c7-49af-a8e3-5c6f11b005dd@112.169.175.199:31157?security=none&type=none#%E9%9F%A9%E5%9B%BD-%E5%AE%B6%E5%AE%BD-002",
-    "remark": "韩国-家宽-002",
+    "uri": "vless://bd2fb303-b4c7-49af-a8e3-5c6f11b005dd@112.169.175.199:31157?security=none&type=none#%E9%9F%A9%E5%9B%BD-%E5%AE%B6%E5%AE%BD-001",
+    "remark": "韩国-家宽-001",
     "country": "KR",
     "org": "AS4766 Korea Telecom",
     "asn": "AS4766 Korea Telecom",
@@ -153,10 +153,10 @@
     "tcp_ms": 21,
     "tls_ms": null,
     "firstSeen": "2026-11-21T18:41:23.525Z",
-    "lastSeen": "2026-11-21T18:41:23.581Z",
-    "lastAlive": "2026-11-21T18:41:23.581Z",
-    "dead": true,
-    "deadCount": 1,
-    "lastChecked": "2026-11-21T18:58:55.869Z"
+    "lastSeen": "2026-11-21T19:51:08.949Z",
+    "lastAlive": "2026-11-21T19:51:08.949Z",
+    "dead": false,
+    "deadCount": 0,
+    "lastChecked": "2026-11-21T19:51:05.931Z"
   }
 ]
