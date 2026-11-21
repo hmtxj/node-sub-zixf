@@ -4165,7 +4165,10 @@
     "isp": "",
     "asn": "AS9318 SK Broadband Co Ltd",
     "source": "ipinfo",
-    "checkedAt": "2026-11-19T01:36:03.682Z"
+    "checkedAt": "2026-11-19T01:36:03.682Z",
+    "proxycheckType": "Residential",
+    "proxycheckRisk": null,
+    "proxycheckSource": "proxycheck"
   },
   "82.38.31.35": {
     "country": "NL",
@@ -9038,5 +9041,341 @@
     "asn": "AS63023 GTHost",
     "source": "ipinfo",
     "checkedAt": "2026-11-21T18:03:20.557Z"
+  },
+  "217.60.182.79": {
+    "country": "EE",
+    "org": "AS197574 ExpressHost Ltd",
+    "isp": "",
+    "asn": "AS197574 ExpressHost Ltd",
+    "source": "ipinfo",
+    "checkedAt": "2026-11-21T18:58:55.209Z"
+  },
+  "161.153.38.61": {
+    "country": "US",
+    "org": "AS31898 Oracle Corporation",
+    "isp": "",
+    "asn": "AS31898 Oracle Corporation",
+    "source": "ipinfo",
+    "checkedAt": "2026-11-21T18:58:55.211Z"
+  },
+  "23.27.11.86": {
+    "country": "JP",
+    "org": "AS149440 Evoxt Sdn. Bhd.",
+    "isp": "",
+    "asn": "AS149440 Evoxt Sdn. Bhd.",
+    "source": "ipinfo",
+    "checkedAt": "2026-11-21T18:58:55.227Z"
+  },
+  "172.67.197.170": {
+    "country": "US",
+    "org": "AS13335 Cloudflare, Inc.",
+    "isp": "",
+    "asn": "AS13335 Cloudflare, Inc.",
+    "source": "ipinfo",
+    "checkedAt": "2026-11-21T18:58:55.228Z"
+  },
+  "152.53.120.90": {
+    "country": "DE",
+    "org": "AS197540 netcup GmbH",
+    "isp": "",
+    "asn": "AS197540 netcup GmbH",
+    "source": "ipinfo",
+    "checkedAt": "2026-11-21T18:58:55.242Z"
+  },
+  "54.36.102.152": {
+    "country": "FR",
+    "org": "AS16276 OVH SAS",
+    "isp": "",
+    "asn": "AS16276 OVH SAS",
+    "source": "ipinfo",
+    "checkedAt": "2026-11-21T18:58:55.243Z"
+  },
+  "43.103.2.53": {
+    "country": "HK",
+    "org": "AS45102 Alibaba (US) Technology Co., Ltd.",
+    "isp": "",
+    "asn": "AS45102 Alibaba (US) Technology Co., Ltd.",
+    "source": "ipinfo",
+    "checkedAt": "2026-11-21T18:58:55.245Z"
+  },
+  "31.59.154.82": {
+    "country": "NL",
+    "org": "AS209693 OC NETWORKS LIMITED",
+    "isp": "",
+    "asn": "AS209693 OC NETWORKS LIMITED",
+    "source": "ipinfo",
+    "checkedAt": "2026-11-21T18:58:55.246Z"
+  },
+  "66.90.91.122": {
+    "country": "RU",
+    "org": "AS3216 PJSC \"Vimpelcom\"",
+    "isp": "",
+    "asn": "AS3216 PJSC \"Vimpelcom\"",
+    "source": "ipinfo",
+    "checkedAt": "2026-11-21T18:58:55.262Z"
+  },
+  "48.102.205.89": {
+    "country": "US",
+    "org": "AS219337 PLAY2GO - FZCO",
+    "isp": "",
+    "asn": "AS219337 PLAY2GO - FZCO",
+    "source": "ipinfo",
+    "checkedAt": "2026-11-21T18:58:55.266Z"
+  },
+  "217.69.174.175": {
+    "country": "DE",
+    "org": "AS200051 VPSLab Networks",
+    "isp": "",
+    "asn": "AS200051 VPSLab Networks",
+    "source": "ipinfo",
+    "checkedAt": "2026-11-21T18:58:55.284Z"
+  },
+  "62.144.51.95": {
+    "country": "DE",
+    "org": "AS16276 OVH SAS",
+    "isp": "",
+    "asn": "AS16276 OVH SAS",
+    "source": "ipinfo",
+    "checkedAt": "2026-11-21T18:58:55.284Z"
+  },
+  "104.18.26.94": {
+    "country": "US",
+    "org": "AS13335 Cloudflare, Inc.",
+    "isp": "",
+    "asn": "AS13335 Cloudflare, Inc.",
+    "source": "ipinfo",
+    "checkedAt": "2026-11-21T18:58:55.296Z"
+  },
+  "217.60.27.153": {
+    "country": "DE",
+    "org": "AS219506 Vladislav Doniy",
+    "isp": "",
+    "asn": "AS219506 Vladislav Doniy",
+    "source": "ipinfo",
+    "checkedAt": "2026-11-21T18:58:55.297Z"
+  },
+  "152.228.162.19": {
+    "country": "FR",
+    "org": "AS16276 OVH SAS",
+    "isp": "",
+    "asn": "AS16276 OVH SAS",
+    "source": "ipinfo",
+    "checkedAt": "2026-11-21T18:58:55.298Z"
+  },
+  "94.72.100.12": {
+    "country": "GB",
+    "org": "AS51167 Contabo GmbH",
+    "isp": "",
+    "asn": "AS51167 Contabo GmbH",
+    "source": "ipinfo",
+    "checkedAt": "2026-11-21T18:58:55.304Z"
+  },
+  "51.38.71.147": {
+    "country": "GB",
+    "org": "AS16276 OVH SAS",
+    "isp": "",
+    "asn": "AS16276 OVH SAS",
+    "source": "ipinfo",
+    "checkedAt": "2026-11-21T18:58:55.315Z"
+  },
+  "1.160.2.42": {
+    "country": "TW",
+    "org": "AS3462 Data Communication Business Group",
+    "isp": "",
+    "asn": "AS3462 Data Communication Business Group",
+    "source": "ipinfo",
+    "checkedAt": "2026-11-21T18:58:55.321Z"
+  },
+  "104.18.43.174": {
+    "country": "US",
+    "org": "AS13335 Cloudflare, Inc.",
+    "isp": "",
+    "asn": "AS13335 Cloudflare, Inc.",
+    "source": "ipinfo",
+    "checkedAt": "2026-11-21T18:58:55.340Z"
+  },
+  "67.159.52.81": {
+    "country": "SG",
+    "org": "AS30058 FDCservers.net",
+    "isp": "",
+    "asn": "AS30058 FDCservers.net",
+    "source": "ipinfo",
+    "checkedAt": "2026-11-21T18:58:55.340Z"
+  },
+  "185.76.241.241": {
+    "country": "RU",
+    "org": "AS207713 GLOBAL INTERNET SOLUTIONS LLC",
+    "isp": "",
+    "asn": "AS207713 GLOBAL INTERNET SOLUTIONS LLC",
+    "source": "ipinfo",
+    "checkedAt": "2026-11-21T18:58:55.350Z"
+  },
+  "38.107.234.57": {
+    "country": "KZ",
+    "org": "AS49791 Newserverlife LLC",
+    "isp": "",
+    "asn": "AS49791 Newserverlife LLC",
+    "source": "ipinfo",
+    "checkedAt": "2026-11-21T18:58:55.351Z"
+  },
+  "103.177.249.143": {
+    "country": "SE",
+    "org": "AS214640 Hostup AB",
+    "isp": "",
+    "asn": "AS214640 Hostup AB",
+    "source": "ipinfo",
+    "checkedAt": "2026-11-21T18:58:55.352Z"
+  },
+  "147.45.175.81": {
+    "country": "RU",
+    "org": "AS9123 JSC \"TIMEWEB\"",
+    "isp": "",
+    "asn": "AS9123 JSC \"TIMEWEB\"",
+    "source": "ipinfo",
+    "checkedAt": "2026-11-21T18:58:55.362Z"
+  },
+  "172.66.211.74": {
+    "country": "US",
+    "org": "AS13335 Cloudflare, Inc.",
+    "isp": "",
+    "asn": "AS13335 Cloudflare, Inc.",
+    "source": "ipinfo",
+    "checkedAt": "2026-11-21T18:58:55.368Z"
+  },
+  "157.254.38.210": {
+    "country": "US",
+    "org": "AS51847 Nearoute Limited",
+    "isp": "",
+    "asn": "AS51847 Nearoute Limited",
+    "source": "ipinfo",
+    "checkedAt": "2026-11-21T18:58:55.376Z"
+  },
+  "16.106.9.61": {
+    "country": "HK",
+    "org": "AS16509 Amazon.com, Inc.",
+    "isp": "",
+    "asn": "AS16509 Amazon.com, Inc.",
+    "source": "ipinfo",
+    "checkedAt": "2026-11-21T18:58:55.393Z"
+  },
+  "2.29.210.28": {
+    "country": "FI",
+    "org": "AS24940 Hetzner Online GmbH",
+    "isp": "",
+    "asn": "AS24940 Hetzner Online GmbH",
+    "source": "ipinfo",
+    "checkedAt": "2026-11-21T18:58:55.396Z"
+  },
+  "109.176.202.74": {
+    "country": "NL",
+    "org": "AS213693 IDPerformance idhosting",
+    "isp": "",
+    "asn": "AS213693 IDPerformance idhosting",
+    "source": "ipinfo",
+    "checkedAt": "2026-11-21T18:58:55.405Z"
+  },
+  "18.179.6.184": {
+    "country": "JP",
+    "org": "AS16509 Amazon.com, Inc.",
+    "isp": "",
+    "asn": "AS16509 Amazon.com, Inc.",
+    "source": "ipinfo",
+    "checkedAt": "2026-11-21T18:58:55.406Z"
+  },
+  "104.164.82.0": {
+    "country": "GB",
+    "org": "AS219284 payload network",
+    "isp": "",
+    "asn": "AS219284 payload network",
+    "source": "ipinfo",
+    "checkedAt": "2026-11-21T18:58:55.411Z"
+  },
+  "146.75.59.186": {
+    "country": "US",
+    "org": "AS54113 Fastly, Inc.",
+    "isp": "",
+    "asn": "AS54113 Fastly, Inc.",
+    "source": "ipinfo",
+    "checkedAt": "2026-11-21T18:58:55.415Z"
+  },
+  "62.60.146.59": {
+    "country": "IR",
+    "org": "AS215633 AbrBaranIDC.NET",
+    "isp": "",
+    "asn": "AS215633 AbrBaranIDC.NET",
+    "source": "ipinfo",
+    "checkedAt": "2026-11-21T18:58:55.422Z"
+  },
+  "199.232.153.242": {
+    "country": "US",
+    "org": "AS54113 Fastly, Inc.",
+    "isp": "",
+    "asn": "AS54113 Fastly, Inc.",
+    "source": "ipinfo",
+    "checkedAt": "2026-11-21T18:58:55.430Z"
+  },
+  "177.202.71.55": {
+    "country": "PL",
+    "org": "AS219337 PLAY2GO - FZCO",
+    "isp": "",
+    "asn": "AS219337 PLAY2GO - FZCO",
+    "source": "ipinfo",
+    "checkedAt": "2026-11-21T18:58:55.449Z"
+  },
+  "201.8.81.75": {
+    "country": "DE",
+    "org": "AS219095 Astra VPS - astravps.co",
+    "isp": "",
+    "asn": "AS219095 Astra VPS - astravps.co",
+    "source": "ipinfo",
+    "checkedAt": "2026-11-21T18:58:55.459Z"
+  },
+  "162.19.192.89": {
+    "country": "DE",
+    "org": "AS16276 OVH SAS",
+    "isp": "",
+    "asn": "AS16276 OVH SAS",
+    "source": "ipinfo",
+    "checkedAt": "2026-11-21T18:58:55.460Z"
+  },
+  "45.149.92.230": {
+    "country": "HK",
+    "org": "AS401443 WAP.AC LLC",
+    "isp": "",
+    "asn": "AS401443 WAP.AC LLC",
+    "source": "ipinfo",
+    "checkedAt": "2026-11-21T18:58:55.461Z"
+  },
+  "153.52.85.154": {
+    "country": "DE",
+    "org": "AS219095 Astra VPS - astravps.co",
+    "isp": "",
+    "asn": "AS219095 Astra VPS - astravps.co",
+    "source": "ipinfo",
+    "checkedAt": "2026-11-21T18:58:55.465Z"
+  },
+  "51.15.19.206": {
+    "country": "NL",
+    "org": "AS12876 Scaleway SAS",
+    "isp": "",
+    "asn": "AS12876 Scaleway SAS",
+    "source": "ipinfo",
+    "checkedAt": "2026-11-21T18:58:55.466Z"
+  },
+  "104.18.22.63": {
+    "country": "US",
+    "org": "AS13335 Cloudflare, Inc.",
+    "isp": "",
+    "asn": "AS13335 Cloudflare, Inc.",
+    "source": "ipinfo",
+    "checkedAt": "2026-11-21T18:58:55.477Z"
+  },
+  "116.202.184.184": {
+    "country": "DE",
+    "org": "AS24940 Hetzner Online GmbH",
+    "isp": "",
+    "asn": "AS24940 Hetzner Online GmbH",
+    "source": "ipinfo",
+    "checkedAt": "2026-11-21T18:58:55.486Z"
   }
 }

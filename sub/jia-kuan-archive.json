@@ -18,8 +18,9 @@
     "firstSeen": "2026-11-21T18:41:23.525Z",
     "lastSeen": "2026-11-21T18:41:23.581Z",
     "lastAlive": "2026-11-21T18:41:23.581Z",
-    "dead": false,
-    "deadCount": 0
+    "dead": true,
+    "deadCount": 1,
+    "lastChecked": "2026-11-21T18:58:55.869Z"
   },
   {
     "key": "trojan|183.236.51.8|10819",
@@ -40,8 +41,9 @@
     "firstSeen": "2026-11-21T18:41:23.525Z",
     "lastSeen": "2026-11-21T18:41:23.581Z",
     "lastAlive": "2026-11-21T18:41:23.581Z",
-    "dead": false,
-    "deadCount": 0
+    "dead": true,
+    "deadCount": 1,
+    "lastChecked": "2026-11-21T18:58:55.869Z"
   },
   {
     "key": "vmess|36.133.78.37|50013",
@@ -62,8 +64,9 @@
     "firstSeen": "2026-11-21T18:41:23.525Z",
     "lastSeen": "2026-11-21T18:41:23.581Z",
     "lastAlive": "2026-11-21T18:41:23.581Z",
-    "dead": false,
-    "deadCount": 0
+    "dead": true,
+    "deadCount": 1,
+    "lastChecked": "2026-11-21T18:58:55.869Z"
   },
   {
     "key": "vmess|36.133.78.37|50017",
@@ -84,8 +87,9 @@
     "firstSeen": "2026-11-21T18:41:23.525Z",
     "lastSeen": "2026-11-21T18:41:23.581Z",
     "lastAlive": "2026-11-21T18:41:23.581Z",
-    "dead": false,
-    "deadCount": 0
+    "dead": true,
+    "deadCount": 1,
+    "lastChecked": "2026-11-21T18:58:55.869Z"
   },
   {
     "key": "vmess|87.254.31.23|41647",
@@ -106,8 +110,9 @@
     "firstSeen": "2026-11-21T18:41:23.525Z",
     "lastSeen": "2026-11-21T18:41:23.581Z",
     "lastAlive": "2026-11-21T18:41:23.581Z",
-    "dead": false,
-    "deadCount": 0
+    "dead": true,
+    "deadCount": 1,
+    "lastChecked": "2026-11-21T18:58:55.869Z"
   },
   {
     "key": "ss|211.178.105.134|6123",
@@ -122,12 +127,12 @@
     "asn": "AS9318 SK Broadband Co Ltd",
     "score": null,
     "risk": null,
-    "proxycheckType": null,
-    "tcp_ms": 10,
+    "proxycheckType": "Residential",
+    "tcp_ms": 129,
     "tls_ms": null,
     "firstSeen": "2026-11-21T18:41:23.525Z",
-    "lastSeen": "2026-11-21T18:41:23.581Z",
-    "lastAlive": "2026-11-21T18:41:23.581Z",
+    "lastSeen": "2026-11-21T18:58:58.883Z",
+    "lastAlive": "2026-11-21T18:58:58.883Z",
     "dead": false,
     "deadCount": 0
   },
@@ -150,7 +155,8 @@
     "firstSeen": "2026-11-21T18:41:23.525Z",
     "lastSeen": "2026-11-21T18:41:23.581Z",
     "lastAlive": "2026-11-21T18:41:23.581Z",
-    "dead": false,
-    "deadCount": 0
+    "dead": true,
+    "deadCount": 1,
+    "lastChecked": "2026-11-21T18:58:55.869Z"
   }
 ]
