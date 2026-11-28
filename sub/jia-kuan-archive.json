@@ -16,11 +16,11 @@
     "tcp_ms": 18,
     "tls_ms": null,
     "firstSeen": "2026-11-21T18:41:23.525Z",
-    "lastSeen": "2026-11-27T16:00:38.570Z",
-    "lastAlive": "2026-11-27T16:00:38.570Z",
+    "lastSeen": "2026-11-28T00:59:35.779Z",
+    "lastAlive": "2026-11-28T00:59:35.779Z",
     "dead": false,
     "deadCount": 0,
-    "lastChecked": "2026-11-27T16:00:35.555Z"
+    "lastChecked": "2026-11-28T00:59:32.766Z"
   },
   {
     "key": "trojan|183.236.51.8|10819",
@@ -39,11 +39,11 @@
     "tcp_ms": 23,
     "tls_ms": null,
     "firstSeen": "2026-11-21T18:41:23.525Z",
-    "lastSeen": "2026-11-27T16:00:38.570Z",
-    "lastAlive": "2026-11-27T16:00:38.570Z",
+    "lastSeen": "2026-11-28T00:59:35.779Z",
+    "lastAlive": "2026-11-28T00:59:35.779Z",
     "dead": false,
     "deadCount": 0,
-    "lastChecked": "2026-11-27T16:00:35.555Z"
+    "lastChecked": "2026-11-28T00:59:32.766Z"
   },
   {
     "key": "vmess|36.133.78.37|50013",
@@ -62,11 +62,11 @@
     "tcp_ms": 16,
     "tls_ms": null,
     "firstSeen": "2026-11-21T18:41:23.525Z",
-    "lastSeen": "2026-11-27T16:00:38.570Z",
-    "lastAlive": "2026-11-27T16:00:38.570Z",
+    "lastSeen": "2026-11-28T00:59:35.779Z",
+    "lastAlive": "2026-11-28T00:59:35.779Z",
     "dead": false,
     "deadCount": 0,
-    "lastChecked": "2026-11-27T16:00:35.555Z"
+    "lastChecked": "2026-11-28T00:59:32.766Z"
   },
   {
     "key": "vmess|36.133.78.37|50017",
@@ -85,11 +85,11 @@
     "tcp_ms": 23,
     "tls_ms": null,
     "firstSeen": "2026-11-21T18:41:23.525Z",
-    "lastSeen": "2026-11-27T16:00:38.570Z",
-    "lastAlive": "2026-11-27T16:00:38.570Z",
+    "lastSeen": "2026-11-28T00:59:35.779Z",
+    "lastAlive": "2026-11-28T00:59:35.779Z",
     "dead": false,
     "deadCount": 0,
-    "lastChecked": "2026-11-27T16:00:35.555Z"
+    "lastChecked": "2026-11-28T00:59:32.766Z"
   },
   {
     "key": "vmess|112.132.215.108|50002",
@@ -105,11 +105,11 @@
     "score": null,
     "risk": null,
     "proxycheckType": "Residential",
-    "tcp_ms": 228,
+    "tcp_ms": 193,
     "tls_ms": null,
     "firstSeen": "2026-11-22T23:09:13.473Z",
-    "lastSeen": "2026-11-27T16:00:38.570Z",
-    "lastAlive": "2026-11-27T16:00:38.570Z",
+    "lastSeen": "2026-11-28T00:59:35.779Z",
+    "lastAlive": "2026-11-28T00:59:35.779Z",
     "dead": false,
     "deadCount": 0,
     "lastChecked": "2026-11-23T17:12:43.442Z"
@@ -131,10 +131,11 @@
     "tcp_ms": 95,
     "tls_ms": 217,
     "firstSeen": "2026-11-25T01:52:12.273Z",
-    "lastSeen": "2026-11-27T16:00:38.570Z",
-    "lastAlive": "2026-11-27T16:00:38.570Z",
+    "lastSeen": "2026-11-28T00:59:35.779Z",
+    "lastAlive": "2026-11-28T00:59:35.779Z",
     "dead": false,
-    "deadCount": 0
+    "deadCount": 0,
+    "lastChecked": "2026-11-28T00:59:32.766Z"
   },
   {
     "key": "vmess|87.254.31.23|41647",
@@ -153,11 +154,11 @@
     "tcp_ms": 17,
     "tls_ms": null,
     "firstSeen": "2026-11-21T18:41:23.525Z",
-    "lastSeen": "2026-11-27T16:00:38.570Z",
-    "lastAlive": "2026-11-27T16:00:38.570Z",
+    "lastSeen": "2026-11-28T00:59:35.779Z",
+    "lastAlive": "2026-11-28T00:59:35.779Z",
     "dead": false,
     "deadCount": 0,
-    "lastChecked": "2026-11-27T16:00:35.555Z"
+    "lastChecked": "2026-11-28T00:59:32.766Z"
   },
   {
     "key": "ss|211.178.105.134|6123",
@@ -165,19 +166,19 @@
     "host": "211.178.105.134",
     "port": 6123,
     "ip": "211.178.105.134",
-    "uri": "ss://YWVzLTI1Ni1jZmI6cXdlclJFV1FAQA==@211.178.105.134:6123#%E9%9F%A9%E5%9B%BD-%E5%AE%B6%E5%AE%BD-003",
-    "remark": "韩国-家宽-003",
+    "uri": "ss://YWVzLTI1Ni1jZmI6cXdlclJFV1FAQA==@211.178.105.134:6123#%E9%9F%A9%E5%9B%BD-%E5%AE%B6%E5%AE%BD-002",
+    "remark": "韩国-家宽-002",
     "country": "KR",
     "org": "AS9318 SK Broadband Co Ltd",
     "asn": "AS9318 SK Broadband Co Ltd",
     "score": null,
     "risk": null,
     "proxycheckType": "Residential",
-    "tcp_ms": 199,
+    "tcp_ms": 127,
     "tls_ms": null,
     "firstSeen": "2026-11-21T18:41:23.525Z",
-    "lastSeen": "2026-11-27T16:00:38.570Z",
-    "lastAlive": "2026-11-27T16:00:38.570Z",
+    "lastSeen": "2026-11-28T00:59:35.779Z",
+    "lastAlive": "2026-11-28T00:59:35.779Z",
     "dead": false,
     "deadCount": 0
   },
@@ -198,11 +199,11 @@
     "tcp_ms": 21,
     "tls_ms": null,
     "firstSeen": "2026-11-21T18:41:23.525Z",
-    "lastSeen": "2026-11-27T16:00:38.570Z",
-    "lastAlive": "2026-11-27T16:00:38.570Z",
+    "lastSeen": "2026-11-28T00:59:35.779Z",
+    "lastAlive": "2026-11-28T00:59:35.779Z",
     "dead": false,
     "deadCount": 0,
-    "lastChecked": "2026-11-27T16:00:35.555Z"
+    "lastChecked": "2026-11-28T00:59:32.766Z"
   },
   {
     "key": "ss|115.161.136.145|10099",
@@ -210,19 +211,19 @@
     "host": "115.161.136.145",
     "port": 10099,
     "ip": "115.161.136.145",
-    "uri": "ss://Y2hhY2hhMjAtaWV0Zi1wb2x5MTMwNToxMjI0Mg==@115.161.136.145:10099#%E9%9F%A9%E5%9B%BD-%E5%AE%B6%E5%AE%BD-002",
-    "remark": "韩国-家宽-002",
+    "uri": "ss://Y2hhY2hhMjAtaWV0Zi1wb2x5MTMwNToxMjI0Mg==@115.161.136.145:10099#%E9%9F%A9%E5%9B%BD-%E5%AE%B6%E5%AE%BD-003",
+    "remark": "韩国-家宽-003",
     "country": "KR",
     "org": "AS38103 SK Broadband Co Ltd",
     "asn": "AS38103 SK Broadband Co Ltd",
     "score": null,
     "risk": null,
     "proxycheckType": "Residential",
-    "tcp_ms": 194,
+    "tcp_ms": 158,
     "tls_ms": null,
     "firstSeen": "2026-11-22T04:46:48.108Z",
-    "lastSeen": "2026-11-27T16:00:38.570Z",
-    "lastAlive": "2026-11-27T16:00:38.570Z",
+    "lastSeen": "2026-11-28T00:59:35.779Z",
+    "lastAlive": "2026-11-28T00:59:35.779Z",
     "dead": false,
     "deadCount": 0,
     "lastChecked": "2026-11-26T01:28:51.014Z"
